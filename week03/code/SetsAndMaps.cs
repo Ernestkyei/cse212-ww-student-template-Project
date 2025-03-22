@@ -1,5 +1,8 @@
 using System.Text.Json;
-
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
 public static class SetsAndMaps
 {
     /// <summary>
@@ -22,7 +25,25 @@ public static class SetsAndMaps
     public static string[] FindPairs(string[] words)
     {
         // TODO Problem 1 - ADD YOUR CODE HERE
-        return [];
+        var wordSet = new HashSet<string>(words); // Store words for fast lookup
+        var pairs = new List<string>();
+        var seen = new HashSet<string>(); // To track already processed words
+
+        foreach (string word in words)
+        {
+            string reversed = new string(new char[] { word[1], word[0] });
+
+            // Check if the reversed word exists and hasn't been added already
+            if (wordSet.Contains(reversed) && word != reversed && !seen.Contains(word) && !seen.Contains(reversed))
+            {
+                pairs.Add($"{word} & {reversed}");
+                seen.Add(word);
+                seen.Add(reversed);
+            }
+        }
+
+        return pairs.ToArray();
+
     }
 
     /// <summary>
@@ -39,14 +60,24 @@ public static class SetsAndMaps
     public static Dictionary<string, int> SummarizeDegrees(string filename)
     {
         var degrees = new Dictionary<string, int>();
+
         foreach (var line in File.ReadLines(filename))
         {
-            var fields = line.Split(",");
-            // TODO Problem 2 - ADD YOUR CODE HERE
+            var fields = line.Split(',');
+
+            if (fields.Length < 4) continue;
+
+            string degree = fields[3].Trim(); // Extract and clean the degree field
+
+            if (!string.IsNullOrEmpty(degree))
+            {
+                degrees[degree] = degrees.GetValueOrDefault(degree, 0) + 1;
+            }
         }
 
         return degrees;
     }
+
 
     /// <summary>
     /// Determine if 'word1' and 'word2' are anagrams.  An anagram
@@ -67,7 +98,34 @@ public static class SetsAndMaps
     public static bool IsAnagram(string word1, string word2)
     {
         // TODO Problem 3 - ADD YOUR CODE HERE
-        return false;
+        // Normalize words: Remove spaces and convert to lowercase
+        word1 = word1.Replace(" ", "").ToLower();
+        word2 = word2.Replace(" ", "").ToLower();
+
+        if (word1.Length != word2.Length)
+            return false; // If lengths differ, they cannot be anagrams
+
+        var letterCount = new Dictionary<char, int>();
+
+        // Count occurrences of each letter in word1
+        foreach (char c in word1)
+        {
+            if (letterCount.TryGetValue(c, out int count))
+                letterCount[c] = count + 1;
+            else
+                letterCount[c] = 1;
+        }
+
+        // Subtract occurrences for each letter in word2
+        foreach (char c in word2)
+        {
+            if (!letterCount.ContainsKey(c) || letterCount[c] == 0)
+                return false; // If a letter is missing or overused, not an anagram
+
+            letterCount[c]--;
+        }
+
+            return true;
     }
 
     /// <summary>
@@ -84,23 +142,44 @@ public static class SetsAndMaps
     /// https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php
     /// 
     /// </summary>
+
+
+    public class Program
+{
     public static string[] EarthquakeDailySummary()
     {
         const string uri = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson";
+        
         using var client = new HttpClient();
-        using var getRequestMessage = new HttpRequestMessage(HttpMethod.Get, uri);
-        using var jsonStream = client.Send(getRequestMessage).Content.ReadAsStream();
-        using var reader = new StreamReader(jsonStream);
-        var json = reader.ReadToEnd();
+        var json = client.GetStringAsync(uri).Result;
         var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
+        
         var featureCollection = JsonSerializer.Deserialize<FeatureCollection>(json, options);
+        
+        if (featureCollection?.Features == null) return Array.Empty<string>();
 
-        // TODO Problem 5:
-        // 1. Add code in FeatureCollection.cs to describe the JSON using classes and properties 
-        // on those classes so that the call to Deserialize above works properly.
-        // 2. Add code below to create a string out each place a earthquake has happened today and its magitude.
-        // 3. Return an array of these string descriptions.
-        return [];
+        var summaries = new List<string>();
+
+        foreach (var feature in featureCollection.Features)
+        {
+            summaries.Add($"Magnitude: {feature.Properties.Mag}, Location: {feature.Properties.Place}, Time: {UnixTimeToDate(feature.Properties.Time)}");
+        }
+
+        return summaries.ToArray();
+    }
+
+    private static string UnixTimeToDate(long unixTime)
+    {
+        return DateTimeOffset.FromUnixTimeMilliseconds(unixTime).ToString("yyyy-MM-dd HH:mm:ss");
+    }
+
+    public static void Main()
+    {
+        var summaries = EarthquakeDailySummary();
+        foreach (var summary in summaries)
+        {
+            Console.WriteLine(summary);
+        }
     }
 }
+
