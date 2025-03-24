@@ -302,19 +302,18 @@ public class MazeTests
     }
 }
 
-//[TestClass]
+[TestClass]
 public class EarthquakeDailySummaryTests
 {
-  
+    [TestMethod]
     public void EarthquakeDailySummary_Basic()
     {
-        var result = SetsAndMaps.EarthquakeDailySummary();        
-        // Instead of forcing >5, check if there's at least 1 result
-        Assert.IsTrue(result.Length >= 1, "No earthquakes found in API response");
+        var result = SetsAndMaps.EarthquakeDailySummary();
+        Assert.IsTrue(result.Length > 5, "Too few earthquakes");
 
         foreach (string s in result)
         {
-            Assert.IsTrue(s.Contains(" - Mag "), $"Invalid format: {s}");
+            Assert.IsTrue(s.Contains(" - Mag "), "String must contain a magnitude");
         }
     }
 }
